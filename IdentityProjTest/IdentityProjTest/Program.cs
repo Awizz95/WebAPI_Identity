@@ -16,13 +16,15 @@ namespace IdentityProjTest
             var builder = WebApplication.CreateBuilder(args);
 
             builder.Services.AddAuthorization();
-            builder.Services.AddAuthentication(options =>
+            builder.Services.AddAuthentication(x =>
             {
-                options.DefaultScheme = IdentityConstants.ApplicationScheme;
-                options.DefaultChallengeScheme = IdentityConstants.ApplicationScheme;
+                x.DefaultScheme = IdentityConstants.ApplicationScheme;
+                x.DefaultChallengeScheme = IdentityConstants.ApplicationScheme;
+
             })
-                .AddCookie(IdentityConstants.ApplicationScheme)
-                .AddBearerToken(IdentityConstants.BearerScheme);
+                .AddBearerToken(IdentityConstants.BearerScheme)
+                .AddCookie(IdentityConstants.ApplicationScheme);
+               
 
             builder.Services.AddIdentityCore<User>()
                 .AddEntityFrameworkStores<AppDBContext>()
@@ -32,6 +34,8 @@ namespace IdentityProjTest
                 options.UseNpgsql(builder.Configuration.GetConnectionString("Database")));
 
             builder.Services.AddEndpointsApiExplorer();
+            builder.Services.AddControllers();
+
             builder.Services.AddSwaggerGen(options =>
             {
                 options.AddSecurityDefinition("oauth2", new OpenApiSecurityScheme
@@ -54,18 +58,11 @@ namespace IdentityProjTest
                 app.ApplyMigrations();
             }
 
-            //добавим защищенную конечную точку
-            app.MapGet("users/me", async (ClaimsPrincipal claims, AppDBContext context) =>
-            {
-                string userId = claims.Claims.First(c => c.Type == ClaimTypes.NameIdentifier).Value;
-
-                return await context.Users.FindAsync(userId);
-            })
-            .RequireAuthorization();
-
             app.UseHttpsRedirection();
 
             app.MapIdentityApi<User>();
+
+            app.MapControllers();
 
             app.Run();
         }
