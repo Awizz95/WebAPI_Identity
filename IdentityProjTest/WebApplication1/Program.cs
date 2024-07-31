@@ -1,13 +1,10 @@
 
-using IdentityProjTest.Database;
-using IdentityProjTest.Extensions;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using System.Security.Claims;
 using Microsoft.OpenApi.Models;
-using Swashbuckle.AspNetCore.Filters;
+using WebApplication1.Data;
 
-namespace IdentityProjTest
+namespace WebApplication1
 {
     public class Program
     {
@@ -17,28 +14,30 @@ namespace IdentityProjTest
 
             builder.Services.AddAuthorization();
 
-            builder.Services.AddIdentityApiEndpoints<User>()
-                .AddEntityFrameworkStores<AppDBContext>();
+            builder.Services.AddIdentityApiEndpoints<IdentityUser>()
+                .AddEntityFrameworkStores<CustomDB>();
 
-            builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddControllers();
+            builder.Services.AddEndpointsApiExplorer();
 
-            builder.Services.AddDbContext<AppDBContext>(options =>
-                options.UseNpgsql(builder.Configuration.GetConnectionString("Database")));
+            builder.Services.AddDbContext<CustomDB>(options =>
+            {
+                options.UseInMemoryDatabase("AuthDb");
+            });
 
             builder.Services.AddSwaggerGen(options =>
             {
                 options.SwaggerDoc("v1", new OpenApiInfo()
                 {
-                    Title = "Authorization",
+                    Title = "Auth demo",
                     Version = "v1"
                 });
 
                 options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
                 {
                     In = ParameterLocation.Header,
-                    Description = "Description",
-                    Name = "Authorization",
+                    Description = "dffdf",
+                    Name = "Auth",
                     Type = SecuritySchemeType.Http,
                     BearerFormat = "JWT",
                     Scheme = "bearer"
@@ -62,19 +61,19 @@ namespace IdentityProjTest
 
             var app = builder.Build();
 
-            app.MapIdentityApi<User>();
+            app.MapIdentityApi<IdentityUser>();
 
+            // Configure the HTTP request pipeline.
             if (app.Environment.IsDevelopment())
             {
                 app.UseSwagger();
                 app.UseSwaggerUI();
-
-                app.ApplyMigrations();
             }
 
             app.UseHttpsRedirection();
 
             app.UseAuthorization();
+
 
             app.MapControllers();
 
