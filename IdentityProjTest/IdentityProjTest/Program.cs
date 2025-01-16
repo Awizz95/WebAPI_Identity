@@ -1,11 +1,12 @@
-
+using IdentityProjTest.Configurations;
 using IdentityProjTest.Database;
-using IdentityProjTest.Extensions;
+using IdentityProjTest.Models;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using System.Security.Claims;
+using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
-using Swashbuckle.AspNetCore.Filters;
+using System.Text;
 
 namespace IdentityProjTest
 {
@@ -15,16 +16,49 @@ namespace IdentityProjTest
         {
             var builder = WebApplication.CreateBuilder(args);
 
-            builder.Services.AddAuthorization();
+            builder.Services.Configure<JwtConfig>(builder.Configuration.GetSection("JwtConfig"));
 
-            builder.Services.AddIdentityApiEndpoints<User>()
-                .AddEntityFrameworkStores<AppDBContext>();
+            builder.Services.AddAuthorization();
+            builder.Services.AddAuthentication(options =>
+            {
+                options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+                options.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
+                options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+            })
+            .AddJwtBearer(jwt =>
+            {
+                var key = Encoding.ASCII.GetBytes(builder.Configuration.GetSection("JwtConfig:SecretKey").Value);
+
+                jwt.SaveToken = true;
+                jwt.TokenValidationParameters = new TokenValidationParameters()
+                {
+                    ValidateIssuerSigningKey = true,
+                    IssuerSigningKey = new SymmetricSecurityKey(key),
+                    ValidateIssuer = false,
+                    ValidateAudience = false,
+                    RequireExpirationTime = false, //необходимо обновить, когда рефреш токен
+                    ValidateLifetime = true
+                };
+            });
+
+            builder.Services.AddDefaultIdentity<User>(options =>
+            {
+                options.SignIn.RequireConfirmedAccount = false;
+                options.SignIn.RequireConfirmedEmail = true;
+                options.Lockout.AllowedForNewUsers = true;
+                options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(4);
+                options.Lockout.MaxFailedAccessAttempts = 5;
+                options.Tokens.EmailConfirmationTokenProvider = TokenOptions.DefaultEmailProvider;
+            })
+                .AddRoles<IdentityRole>()
+                .AddEntityFrameworkStores<AppDbContext>()
+                .AddPasswordValidator<PasswordValidator<User>>();
 
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddControllers();
 
-            builder.Services.AddDbContext<AppDBContext>(options =>
-                options.UseNpgsql(builder.Configuration.GetConnectionString("Database")));
+            builder.Services.AddDbContext<AppDbContext>(options =>
+                options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
 
             builder.Services.AddSwaggerGen(options =>
             {
@@ -62,18 +96,15 @@ namespace IdentityProjTest
 
             var app = builder.Build();
 
-            app.MapIdentityApi<User>();
-
             if (app.Environment.IsDevelopment())
             {
                 app.UseSwagger();
                 app.UseSwaggerUI();
-
-                app.ApplyMigrations();
             }
 
             app.UseHttpsRedirection();
 
+            app.UseAuthentication();
             app.UseAuthorization();
 
             app.MapControllers();

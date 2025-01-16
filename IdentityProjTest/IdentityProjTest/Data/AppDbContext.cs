@@ -1,15 +1,18 @@
-﻿using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage;
+﻿using IdentityProjTest.Configurations;
+using IdentityProjTest.Models;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
 namespace IdentityProjTest.Database
 {
-    public class AppDBContext : IdentityDbContext<User>
+    public class AppDbContext : IdentityDbContext<User>
     {
-        public AppDBContext(DbContextOptions<AppDBContext> options)
+        public AppDbContext(DbContextOptions<AppDbContext> options)
             : base(options)
         {
         }
+
+        public DbSet<Team> Teams { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -17,7 +20,7 @@ namespace IdentityProjTest.Database
 
             builder.Entity<User>().Property(u => u.Initials).HasMaxLength(5);
 
-            builder.HasDefaultSchema("identity");
+            builder.ApplyConfiguration(new RoleConfiguration());
         }
     }
 }
